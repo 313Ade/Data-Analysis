@@ -1,109 +1,122 @@
 
 -- ORDERS
-SELECT * FROM mintclassics.orders;
-select
- -- count(distinct(o.orderNumber)) PendingOrders,
- distinct(o.orderNumber) pendingOrders, 
- w.warehouseName, od.quantityOrdered, od.productCode, p.productName, status
--- count(*) PendingOrders
-from orders o
-
-join orderdetails od
-on o.orderNumber = od.orderNumber
-join products p
-on p.productCode = od.productCode
-right join warehouses w
-on w.warehouseCode = p.warehouseCode
-
-where status NOT LIKE 'SHIPPED'
-and status not like 'CANCELLED'
-and status not like 'RESOLVED'
-and status not like 'DISPUTED'
-and status not like 'ON HOLD'
-
--- group by 2
-
-order by 2
+SELECT 
+    *
+FROM
+    mintclassics.orders;
+SELECT DISTINCT
+    (o.orderNumber) pendingOrders,
+    w.warehouseName,
+    od.quantityOrdered,
+    od.productCode,
+    p.productName,
+    status
+FROM
+    orders o
+        JOIN
+    orderdetails od ON o.orderNumber = od.orderNumber
+        JOIN
+    products p ON p.productCode = od.productCode
+        RIGHT JOIN
+    warehouses w ON w.warehouseCode = p.warehouseCode
+WHERE
+    status NOT LIKE 'SHIPPED'
+        AND status NOT LIKE 'CANCELLED'
+        AND status NOT LIKE 'RESOLVED'
+        AND status NOT LIKE 'DISPUTED'
+        AND status NOT LIKE 'ON HOLD'
+ORDER BY 2
 ;
-select
- -- count(distinct(o.orderNumber)) PendingOrders,
- -- distinct(o.orderNumber) pendingOrders, 
- w.warehouseName, od.quantityOrdered
- -- count(od.quantityOrdered)
--- count(*) PendingOrders
-from orders o
-
-join orderdetails od
-on o.orderNumber = od.orderNumber
-join products p
-on p.productCode = od.productCode
-right join warehouses w
-on w.warehouseCode = p.warehouseCode
-
-where status NOT LIKE 'SHIPPED'
-and status not like 'CANCELLED'
-and status not like 'RESOLVED'
-and status not like 'DISPUTED'
-and status not like 'on hold';
+SELECT 
+    w.warehouseName, od.quantityOrdered
+FROM
+    orders o
+        JOIN
+    orderdetails od ON o.orderNumber = od.orderNumber
+        JOIN
+    products p ON p.productCode = od.productCode
+        RIGHT JOIN
+    warehouses w ON w.warehouseCode = p.warehouseCode
+WHERE
+    status NOT LIKE 'SHIPPED'
+        AND status NOT LIKE 'CANCELLED'
+        AND status NOT LIKE 'RESOLVED'
+        AND status NOT LIKE 'DISPUTED'
+        AND status NOT LIKE 'on hold';
 
 -- WAREHOUSE ANALYSIS --
-SELECT sum(od.quantityOrdered) QuantityOrdered, warehouseName, sum(quantityOrdered * priceEach) Revenue,
+SELECT 
+    SUM(od.quantityOrdered) QuantityOrdered,
+    warehouseName,
+    SUM(quantityOrdered * priceEach) Revenue,
+    (SUM(quantityOrdered * priceEach) / SUM(od.quantityOrdered)) AvgRevenue
+FROM
+    mintclassics.warehouses w
+        JOIN
+    products p ON p.warehouseCode = w.warehouseCode
+        JOIN
+    orderdetails od ON od.productCode = p.productCode
+        JOIN
+    orders o ON o.orderNumber = od.orderNumber
+WHERE
+    status = 'Shipped'
+GROUP BY 2
+ORDER BY 3 DESC;-- PRODUCT PERFORMANCE
 
-(sum(quantityOrdered * priceEach)/sum(od.quantityOrdered)) AvgRevenue
+SELECT 
+    COUNT(*)
+FROM
+    (SELECT 
+        productName, w.warehouseCode
+    FROM
+        warehouses w
+    JOIN products p ON p.warehouseCode = w.warehouseCode
+    ORDER BY 1) ss;-- subquery gets the products and their respective warehouses. outerquery gets the count of all the entries
 
-FROM mintclassics.warehouses w
+SELECT 
+    COUNT(*) ordersPlaced,
+    MONTH(orderDate) month,
+    YEAR(orderdate) year
+FROM
+    mintclassics.orders o
+        JOIN
+    orderdetails od ON od.orderNumber = o.orderNumber
+GROUP BY 2 , 3
+ORDER BY 1 DESC
+LIMIT 5;-- ORDERS PLACED PER MONTH
 
+SELECT 
+    SUM(quantityordered),
+    productName,
+    productLine,
+    quantityInStock,
+    (quantityInStock - SUM(quantityordered)) AS diff,
+    priceEach,
+    warehouseName
+FROM
+    mintclassics.orders o
+        JOIN
+    orderdetails od ON od.orderNumber = o.orderNumber
+        JOIN
+    products p ON p.productCode = od.productCode
+        JOIN
+    warehouses w ON w.warehouseCode = p.warehouseCode
+WHERE
+    status = 'shipped'
+GROUP BY productName
+ORDER BY quantityInStock DESC;-- quanity ordered, quantity in stock and difference
 
-join products p
-on p.warehouseCode = w.warehouseCode
-join orderdetails od
-on od.productCode = p.productCode
-join orders o 
-on o.orderNumber = od.orderNumber
-
-where status = 'Shipped'
-group by 2	
-order by 3 desc; -- PRODUCT PERFORMANCE
-
- select count(*) from (select productName, w.warehouseCode from warehouses w
-join products p
-on p.warehouseCode = w.warehouseCode
-order by 1) ss; -- subquery gets the products and their respective warehouses. outerquery gets the count of all the entries
-
--- ORDERS ANALYSIS --
-select COUNT(*) ordersPlaced, month(orderDate) month, year(orderdate) year
-FROM 
- mintclassics.orders o
-        JOIN orderdetails od ON od.orderNumber = o.orderNumber
-        GROUP BY 2,3
-        ORDER BY 1 DESC
-       LIMIT 5; -- ORDERS PLACED PER MONTH
-
-select sum(quantityordered), productName, productLine, quantityInStock, (quantityInStock-sum(quantityordered)) as diff, priceEach, warehouseName
-from 
- mintclassics.orders o
-        JOIN orderdetails od ON od.orderNumber = o.orderNumber
-        JOIN products p ON p.productCode = od.productCode
-        join warehouses w ON w.warehouseCode = p.warehouseCode
-where status = 'shipped'
-group by productName
-ORDER BY quantityInStock desc; -- quanity ordered, quantity in stock and difference
-
-SELECT *
--- sum(quantityOrdered),
--- month(shippeddate) month, year(shippeddate) year
-
-FROM mintclassics.orders o
-join orderdetails od 
-on od.orderNumber = o.orderNumber
-join products p
-on p.productCode = od.productCode
-
-where status = 'shipped'
--- and shippedDate > '2004-01-01'
--- group by month(shippeddate), year(shippedDate)
-order by quantityOrdered desc
--- limit 5;
+SELECT 
+    *
+FROM
+    mintclassics.orders o
+        JOIN
+    orderdetails od ON od.orderNumber = o.orderNumber
+        JOIN
+    products p ON p.productCode = od.productCode
+WHERE
+    status = 'shipped'
+ORDER BY quantityOrdered DESC
 ;
 SELECT
     MONTH(shippedDate) AS shipment_month,
@@ -127,16 +140,26 @@ FROM (
 ) AS subquery
 GROUP BY
     shipment_month
-ORDER BY 4 DESC; -- not necessary (SUBQUERIES IN ACTION, THOUGH)
+ORDER BY 4 DESC;-- not necessary (SUBQUERIES IN ACTION, THOUGH)
 
-SELECT productName, od.priceEach, sum(quantityOrdered) quantityOrderedTotal, (priceEach*sum(quantityOrdered)) Revenue, quantityInStock, warehouseName
-FROM 
-products p
-JOIN orderdetails od ON od.productCode = p.productCode
-JOIN orders o ON o.orderNumber = od.orderNumber
-JOIN warehouses w on w.warehouseCode = p.warehouseCode
-where status not like 'cancelled'
-and status not like 'disputed'
+SELECT 
+    productName,
+    od.priceEach,
+    SUM(quantityOrdered) quantityOrderedTotal,
+    (priceEach * SUM(quantityOrdered)) Revenue,
+    quantityInStock,
+    warehouseName
+FROM
+    products p
+        JOIN
+    orderdetails od ON od.productCode = p.productCode
+        JOIN
+    orders o ON o.orderNumber = od.orderNumber
+        JOIN
+    warehouses w ON w.warehouseCode = p.warehouseCode
+WHERE
+    status NOT LIKE 'cancelled'
+        AND status NOT LIKE 'disputed'
 GROUP BY productName
 ORDER BY Revenue DESC; -- TOP REVENUE PRODUCTS
 
